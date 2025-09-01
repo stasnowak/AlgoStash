@@ -1,102 +1,42 @@
-﻿using System.Collections;
+﻿using System.Text.Json;
+using DiffCore;
 
-int[] array = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+int[] a = [0, 1, 2, 3, 4, 5];
+int[] b = [0, 2, 3, 4, 5, 6];
 
-SomeIn(array);
-array.ForEach();
+var output = Diff.Compute(a, b);
 
-SomeOut(out var outArray);
-outArray.ForEach();
-
-
-void SomeIn(in int[] inArray)
+foreach (var e in output)
 {
-    inArray[3] = 100;
+    Console.WriteLine(JsonSerializer.Serialize(e));
 }
 
-void SomeOut(out int[] outArray)
+foreach (var e in ApplyEdits(b, output))
 {
-    outArray = [1, 2, 3];
+    Console.WriteLine(e);
 }
 
-bool TryDivide(int a, int b, out int result)
+IReadOnlyList<T> ApplyEdits<T>(IReadOnlyList<T> a, IReadOnlyList<Edit<T>> edits)
 {
-    if (b == 0)
+    var result = new List<T>();
+    int ai = 0;
+    foreach (var e in edits)
     {
-        result = 0;
-        return false;
-    }
-    result = a / b;
-    return true;
-}
-
-if (TryDivide(10, 2, out var q))
-{
-    Console.WriteLine(q);
-}
-else
-{
-    Console.WriteLine("Dzielenie przez zero");
-}
-
-void Swap<T>(ref T a, ref T b)
-{
-    (a, b) = (b, a);
-}
-
-int x = 1, y = 2;
-Swap(ref x, ref y);
-
-double Distance(in Vec2 a, in Vec2 b)
-{
-    double dx = b.X - a.X;
-    double dy = b.Y - a.Y;
-    return Math.Sqrt(dx*dx + dy*dy);
-}
-
-var p1 = new Vec2(0, 0);
-var p2 = new Vec2(3, 4);
-Console.WriteLine(Distance(in p1, in p2));
-
-public readonly struct Vec2
-{
-    public readonly double X, Y;
-    public Vec2(double x, double y) { X = x; Y = y; }
-}
-
-public static class ArrayExtensions
-{
-    public static int[] AddingWhatWhere(this int[] array, int what, int where)
-    {
-        for (int i = array.Length - 2; i >= where; i--)
+        if (e.Kind == EditKind.Match)
         {
-            array[i + 1] = array[i];
+            for (int k = 0; k < e.Length; k++) result.Add(a[e.AIndex + k]);
+            ai = e.AIndex + e.Length;
         }
-        
-        array[where] = what;
-        
-        return array;
+        else if (e.Kind == EditKind.Delete)
+        {
+            ai = e.AIndex + e.Length;
+        }
+        else
+        {
+            if (e.Items is { } items) result.AddRange(items);
+            else throw new InvalidOperationException("Insert Items must be provided or derivable.");
+        }
     }
 
-    public static int[] SubtractingWhatWhere(this int[] array, int what, int where)
-    {
-        for (int i = 1; i < where; i++)
-        {
-            array[i - 1] = array[i];
-        }
-        
-        array[where-1] = what;
-        
-        return array;
-    }
-    
-    public static void ForEach(this int[] array)
-    {
-        foreach (var t in array)
-        {
-            Console.WriteLine(t);
-        }
-
-        Console.WriteLine();
-    }
+    return result;
 }
