@@ -1,42 +1,23 @@
 ﻿using System.Text.Json;
-using DiffCore;
+using AlgoStash;
 
 int[] a = [0, 1, 2, 3, 4, 5];
 int[] b = [0, 2, 3, 4, 5, 6];
 
-var output = Diff.Compute(a, b);
+var diffLCS = Diffs.CreateLCS(a, b, EqualityComparer<int>.Default);
 
-foreach (var e in output)
+foreach (var entry in diffLCS.Entries)
 {
-    Console.WriteLine(JsonSerializer.Serialize(e));
+    Console.WriteLine(JsonSerializer.Serialize(entry));   
 }
 
-foreach (var e in ApplyEdits(b, output))
-{
-    Console.WriteLine(e);
-}
+Console.WriteLine();
+Console.WriteLine();
+Console.WriteLine();
 
-IReadOnlyList<T> ApplyEdits<T>(IReadOnlyList<T> a, IReadOnlyList<Edit<T>> edits)
-{
-    var result = new List<T>();
-    int ai = 0;
-    foreach (var e in edits)
-    {
-        if (e.Kind == EditKind.Match)
-        {
-            for (int k = 0; k < e.Length; k++) result.Add(a[e.AIndex + k]);
-            ai = e.AIndex + e.Length;
-        }
-        else if (e.Kind == EditKind.Delete)
-        {
-            ai = e.AIndex + e.Length;
-        }
-        else
-        {
-            if (e.Items is { } items) result.AddRange(items);
-            else throw new InvalidOperationException("Insert Items must be provided or derivable.");
-        }
-    }
+var diffMayer = Diffs.CreateMayer(a, b, EqualityComparer<int>.Default);
 
-    return result;
+foreach (var entry in diffMayer.Entries)
+{
+    Console.WriteLine(JsonSerializer.Serialize(entry));   
 }
