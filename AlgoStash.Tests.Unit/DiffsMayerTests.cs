@@ -1,4 +1,3 @@
-using AlgoStash;
 using FluentAssertions;
 using Xunit;
 
@@ -50,7 +49,6 @@ public class DiffsMayerTests
 
         var diff = Diffs.CreateMayer(a, b, EqualityComparer<int>.Default);
 
-        // Heuristic may produce same as LCS for this case; ensure a valid edit script when applied transforms a->b
         Apply(a, diff.Entries).Should().Equal(b);
     }
 

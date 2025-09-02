@@ -43,3 +43,10 @@ It prints JSON-serialized entries for both algorithms.
 
 ## Contributing
 Issues and PRs are welcome.
+
+## Initial Bad Benchmarks
+
+| Method             | Mean        | Error      | StdDev     | Ratio | RatioSD | Rank | Gen0     | Gen1     | Gen2     | Allocated  | Alloc Ratio |
+|------------------- |------------:|-----------:|-----------:|------:|--------:|-----:|---------:|---------:|---------:|-----------:|------------:|
+| Lcs_Diff_Persons   | 5,817.71 us | 167.124 us | 110.542 us | 1.000 |    0.03 |    2 | 992.1875 | 992.1875 | 992.1875 | 3990.66 KB |        1.00 |
+| Mayer_Diff_Persons |    11.47 us |   0.373 us |   0.247 us | 0.002 |    0.00 |    1 |   6.7139 |   1.1139 |        - |   109.9 KB |        0.03 |

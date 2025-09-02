@@ -1,5 +1,3 @@
-using System.Text.Json;
-using AlgoStash;
 using FluentAssertions;
 using Xunit;
 
@@ -46,14 +44,11 @@ public class DiffsLcsTests
     [Fact]
     public void Lcs_Mixed_ShouldFollowLcsMatrixBacktracking()
     {
-        // From Program.cs example: a = [0,1,2,3,4,5], b = [0,2,3,4,5,6]
         var a = new[] {0, 1, 2, 3, 4, 5};
         var b = new[] {0, 2, 3, 4, 5, 6};
 
         var diff = Diffs.CreateLCS(a, b, EqualityComparer<int>.Default);
 
-        // One possible optimal edit script:
-        // Stable 0, Remove 1, Stable 2,3,4,5, Insert 6
         var expected = new (DiffType Type, int Val)[]
         {
             (DiffType.Stable, 0),
@@ -82,8 +77,7 @@ public class DiffsLcsTests
 
         var diff = Diffs.CreateLCS(a, b, new Mod10Comparer());
 
-        // All should be considered equal by mod10
         diff.Entries.Select(e => e.Type).Should().Equal(new[] {DiffType.Stable, DiffType.Stable, DiffType.Stable});
-        diff.Entries.Select(e => e.Value).Should().Equal(a); // Values from old sequence when stable per backtracking
+        diff.Entries.Select(e => e.Value).Should().Equal(a);
     }
 }
