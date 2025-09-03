@@ -10,13 +10,13 @@ public static class Diffs
     private const int StackAllocThreshold = 4096;
     private const int HuntSzymanskiMatchLimit = 2_000_000;
 
-    public static Diff<T> CreateLCS<T>(T[] oldSequence, T[] newSequence, IEqualityComparer<T> equalityComparer)
+    public static Diff<T> CreateLCS<T>(T[] oldSequence, T[] newSequence, IEqualityComparer<T> equalityComparer) where T : notnull
     {
-        ComputeTrim(oldSequence, newSequence, equalityComparer, out int prefixLen, out int suffixLen);
+        ComputeTrim(oldSequence, newSequence, equalityComparer, out var prefixLen, out var suffixLen);
 
         var output = new List<DiffEntry<T>>(oldSequence.Length + newSequence.Length);
 
-        for (int i = 0; i < prefixLen; i++)
+        for (var i = 0; i < prefixLen; i++)
             output.Add(new DiffEntry<T> { Type = DiffType.Stable, Value = oldSequence[i] });
 
         var a = oldSequence.AsSpan(prefixLen, oldSequence.Length - prefixLen - suffixLen);
@@ -24,13 +24,13 @@ public static class Diffs
 
         if (a.Length == 0)
         {
-            for (int j = 0; j < b.Length; j++)
-                output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
+            foreach (var t in b)
+                output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = t });
         }
         else if (b.Length == 0)
         {
-            for (int i = 0; i < a.Length; i++)
-                output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
+            foreach (var t in a)
+                output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = t });
         }
         else
         {
@@ -43,19 +43,19 @@ public static class Diffs
             }
         }
 
-        int aTailStart = oldSequence.Length - suffixLen;
-        for (int i = aTailStart; i < oldSequence.Length; i++)
+        var aTailStart = oldSequence.Length - suffixLen;
+        for (var i = aTailStart; i < oldSequence.Length; i++)
             output.Add(new DiffEntry<T> { Type = DiffType.Stable, Value = oldSequence[i] });
 
-        return new Diff<T> { Entries = output.ToArray() };
+        return new Diff<T> { Entries = output };
     }
 
     public static Diff<T> CreateMayer<T>(T[] oldSequence, T[] newSequence, IEqualityComparer<T> equalityComparer)
     {
         var diffEntries = new List<DiffEntry<T>>(oldSequence.Length + newSequence.Length);
 
-        int i = 0;
-        int j = 0;
+        var i = 0;
+        var j = 0;
 
         while (i < oldSequence.Length && j < newSequence.Length)
         {
@@ -67,16 +67,16 @@ public static class Diffs
             }
             else
             {
-                int ii = i;
-                int jj = j;
-                bool removed = false;
+                var ii = i;
+                var jj = j;
+                var removed = false;
 
                 while (ii < oldSequence.Length && jj < newSequence.Length && !equalityComparer.Equals(oldSequence[ii], newSequence[jj]))
                 {
                     ii++;
                 }
 
-                for (int k = i; k < ii; k++)
+                for (var k = i; k < ii; k++)
                 {
                     diffEntries.Add(new DiffEntry<T> { Value = oldSequence[k], Type = DiffType.Remove });
                     i++;
@@ -91,7 +91,7 @@ public static class Diffs
                     jj++;
                 }
 
-                for (int k = j; k < jj; k++)
+                for (var k = j; k < jj; k++)
                 {
                     diffEntries.Add(new DiffEntry<T> { Value = newSequence[k], Type = DiffType.Insert });
                     j++;
@@ -99,12 +99,12 @@ public static class Diffs
             }
         }
 
-        for (int k = i; k < oldSequence.Length; k++)
+        for (var k = i; k < oldSequence.Length; k++)
         {
             diffEntries.Add(new DiffEntry<T> { Value = oldSequence[k], Type = DiffType.Remove });
         }
 
-        for (int k = j; k < newSequence.Length; k++)
+        for (var k = j; k < newSequence.Length; k++)
         {
             diffEntries.Add(new DiffEntry<T> { Value = newSequence[k], Type = DiffType.Insert });
         }
@@ -115,7 +115,7 @@ public static class Diffs
     private static bool TryHuntSzymanskiDiff<T>(ReadOnlySpan<T> a, ReadOnlySpan<T> b, IEqualityComparer<T> cmp, List<DiffEntry<T>> output) where T : notnull
     {
         var map = new Dictionary<T, List<int>>(b.Length, cmp);
-        for (int j = 0; j < b.Length; j++)
+        for (var j = 0; j < b.Length; j++)
         {
             var val = b[j];
             if (!map.TryGetValue(val, out var list))
@@ -124,30 +124,36 @@ public static class Diffs
         }
 
         long totalMatches = 0;
-        for (int i = 0; i < a.Length; i++)
-            if (map.TryGetValue(a[i], out var lst)) totalMatches += lst.Count;
+        foreach (var t in a)
+            if (map.TryGetValue(t, out var lst)) totalMatches += lst.Count;
 
-        if (totalMatches == 0)
+        switch (totalMatches)
         {
-            for (int i = 0; i < a.Length; i++) output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
-            for (int j = 0; j < b.Length; j++) output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
-            return true;
+            case 0:
+            {
+                foreach (var t in a)
+                    output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = t });
+
+                foreach (var t in b)
+                    output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = t });
+
+                return true;
+            }
+            case > HuntSzymanskiMatchLimit:
+                return false;
         }
 
-        if (totalMatches > HuntSzymanskiMatchLimit)
-            return false;
+        var r = (int)totalMatches;
 
-        int R = (int)totalMatches;
+        var js = ArrayPool<int>.Shared.Rent(r);
+        var aiIdx = ArrayPool<int>.Shared.Rent(r);
+        var tCount = 0;
 
-        int[] js = ArrayPool<int>.Shared.Rent(R);
-        int[] aiIdx = ArrayPool<int>.Shared.Rent(R);
-        int tCount = 0;
-
-        for (int i = 0; i < a.Length; i++)
+        for (var i = 0; i < a.Length; i++)
         {
             if (!map.TryGetValue(a[i], out var lst)) continue;
             var arr = CollectionsMarshal.AsSpan(lst);
-            for (int p = arr.Length - 1; p >= 0; p--)
+            for (var p = arr.Length - 1; p >= 0; p--)
             {
                 if (tCount == js.Length) break;
                 js[tCount] = arr[p];
@@ -158,42 +164,45 @@ public static class Diffs
 
         if (tCount == 0)
         {
-            for (int i = 0; i < a.Length; i++) output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
-            for (int j = 0; j < b.Length; j++) output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
+            foreach (var t in a)
+                output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = t });
+
+            foreach (var t in b)
+                output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = t });
 
             ArrayPool<int>.Shared.Return(js, true);
             ArrayPool<int>.Shared.Return(aiIdx, true);
             return true;
         }
 
-        int maxL = Math.Min(a.Length, b.Length);
-        int[] tailsVal = ArrayPool<int>.Shared.Rent(maxL);
-        int[] tailsPtr = ArrayPool<int>.Shared.Rent(maxL);
-        int[] prev = ArrayPool<int>.Shared.Rent(tCount);
+        var maxL = Math.Min(a.Length, b.Length);
+        var tailsVal = ArrayPool<int>.Shared.Rent(maxL);
+        var tailsPtr = ArrayPool<int>.Shared.Rent(maxL);
+        var prev = ArrayPool<int>.Shared.Rent(tCount);
 
-        int L = 0;
-        for (int t = 0; t < tCount; t++)
+        var l = 0;
+        for (var t = 0; t < tCount; t++)
         {
-            int jVal = js[t];
+            var jVal = js[t];
 
-            int lo = 0, hi = L;
+            int lo = 0, hi = l;
             while (lo < hi)
             {
-                int mid = (lo + hi) >> 1;
+                var mid = (lo + hi) >> 1;
                 if (tailsVal[mid] < jVal) lo = mid + 1; else hi = mid;
             }
-            int pos = lo;
+            var pos = lo;
 
             tailsVal[pos] = jVal;
             tailsPtr[pos] = t;
             prev[t] = (pos > 0) ? tailsPtr[pos - 1] : -1;
 
-            if (pos == L) L++;
+            if (pos == l) l++;
         }
 
-        int[] lcsT = ArrayPool<int>.Shared.Rent(L);
-        int k = L - 1;
-        int cur = tailsPtr[L - 1];
+        var lcsT = ArrayPool<int>.Shared.Rent(l);
+        var k = l - 1;
+        var cur = tailsPtr[l - 1];
         while (cur >= 0)
         {
             lcsT[k--] = cur;
@@ -201,16 +210,16 @@ public static class Diffs
         }
 
         int ia = 0, jb = 0;
-        for (int idx = 0; idx < L; idx++)
+        for (var idx = 0; idx < l; idx++)
         {
-            int t = lcsT[idx];
-            int pa = aiIdx[t];
-            int pb = js[t];
+            var t = lcsT[idx];
+            var pa = aiIdx[t];
+            var pb = js[t];
 
-            for (int i = ia; i < pa; i++)
+            for (var i = ia; i < pa; i++)
                 output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
 
-            for (int j = jb; j < pb; j++)
+            for (var j = jb; j < pb; j++)
                 output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
 
             output.Add(new DiffEntry<T> { Type = DiffType.Stable, Value = a[pa] });
@@ -219,9 +228,9 @@ public static class Diffs
             jb = pb + 1;
         }
 
-        for (int i = ia; i < a.Length; i++)
+        for (var i = ia; i < a.Length; i++)
             output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
-        for (int j = jb; j < b.Length; j++)
+        for (var j = jb; j < b.Length; j++)
             output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
 
         ArrayPool<int>.Shared.Return(js, true);
@@ -244,54 +253,54 @@ public static class Diffs
 
         if (a.IsEmpty)
         {
-            for (int j = 0; j < b.Length; j++)
+            for (var j = 0; j < b.Length; j++)
                 output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
             return;
         }
 
         if (b.IsEmpty)
         {
-            for (int i = 0; i < a.Length; i++)
+            for (var i = 0; i < a.Length; i++)
                 output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
             return;
         }
 
         if (a.Length == 1)
         {
-            int k = IndexOf(b, a[0], cmp);
+            var k = IndexOf(b, a[0], cmp);
             if (k >= 0)
             {
-                for (int j = 0; j < k; j++) output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
+                for (var j = 0; j < k; j++) output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
                 output.Add(new DiffEntry<T> { Type = DiffType.Stable, Value = a[0] });
-                for (int j = k + 1; j < b.Length; j++) output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
+                for (var j = k + 1; j < b.Length; j++) output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
             }
             else
             {
                 output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[0] });
-                for (int j = 0; j < b.Length; j++) output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
+                for (var j = 0; j < b.Length; j++) output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[j] });
             }
             return;
         }
 
         if (b.Length == 1)
         {
-            int k = IndexOf(a, b[0], cmp);
+            var k = IndexOf(a, b[0], cmp);
             if (k >= 0)
             {
-                for (int i = 0; i < k; i++) output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
+                for (var i = 0; i < k; i++) output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
                 output.Add(new DiffEntry<T> { Type = DiffType.Stable, Value = a[k] });
-                for (int i = k + 1; i < a.Length; i++) output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
+                for (var i = k + 1; i < a.Length; i++) output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
             }
             else
             {
-                for (int i = 0; i < a.Length; i++) output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
+                for (var i = 0; i < a.Length; i++) output.Add(new DiffEntry<T> { Type = DiffType.Remove, Value = a[i] });
                 output.Add(new DiffEntry<T> { Type = DiffType.Insert, Value = b[0] });
             }
             return;
         }
 
-        int mid = a.Length / 2;
-        int n = b.Length;
+        var mid = a.Length / 2;
+        var n = b.Length;
 
         if (n + 1 <= StackAllocThreshold)
         {
@@ -304,9 +313,9 @@ public static class Diffs
             LcsLengthsBackward(a[mid..], b, cmp, rightRow);
 
             int split = 0, max = -1;
-            for (int j = 0; j <= n; j++)
+            for (var j = 0; j <= n; j++)
             {
-                int val = leftRow[j] + rightRow[j];
+                var val = leftRow[j] + rightRow[j];
                 if (val > max) { max = val; split = j; }
             }
 
@@ -316,8 +325,8 @@ public static class Diffs
         else
         {
             var pool = ArrayPool<int>.Shared;
-            int[] leftArr = pool.Rent(n + 1);
-            int[] rightArr = pool.Rent(n + 1);
+            var leftArr = pool.Rent(n + 1);
+            var rightArr = pool.Rent(n + 1);
             try
             {
                 Array.Clear(leftArr, 0, n + 1);
@@ -329,9 +338,9 @@ public static class Diffs
                 int split = 0, max = -1;
                 var left = leftArr.AsSpan(0, n + 1);
                 var right = rightArr.AsSpan(0, n + 1);
-                for (int j = 0; j <= n; j++)
+                for (var j = 0; j <= n; j++)
                 {
-                    int val = left[j] + right[j];
+                    var val = left[j] + right[j];
                     if (val > max) { max = val; split = j; }
                 }
 
@@ -349,14 +358,14 @@ public static class Diffs
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int IndexOf<T>(ReadOnlySpan<T> span, T value, IEqualityComparer<T> cmp)
     {
-        for (int i = 0; i < span.Length; i++)
+        for (var i = 0; i < span.Length; i++)
             if (cmp.Equals(span[i], value)) return i;
         return -1;
     }
 
     private static void LcsLengthsForward<T>(ReadOnlySpan<T> a, ReadOnlySpan<T> b, IEqualityComparer<T> cmp, Span<int> result)
     {
-        int n = b.Length;
+        var n = b.Length;
         if (result.Length < n + 1) throw new ArgumentException("Result span too small.", nameof(result));
 
         if (n + 1 <= StackAllocThreshold)
@@ -365,11 +374,11 @@ public static class Diffs
             Span<int> cur = stackalloc int[n + 1];
             prev.Clear(); cur.Clear();
 
-            for (int i = 0; i < a.Length; i++)
+            for (var i = 0; i < a.Length; i++)
             {
                 cur[0] = 0;
                 var ai = a[i];
-                for (int j = 1; j <= n; j++)
+                for (var j = 1; j <= n; j++)
                     cur[j] = cmp.Equals(ai, b[j - 1]) ? prev[j - 1] + 1 : (prev[j] >= cur[j - 1] ? prev[j] : cur[j - 1]);
                 var tmp = prev;
                 prev = cur;
@@ -381,19 +390,19 @@ public static class Diffs
         else
         {
             var pool = ArrayPool<int>.Shared;
-            int[] prevArr = pool.Rent(n + 1);
-            int[] curArr = pool.Rent(n + 1);
+            var prevArr = pool.Rent(n + 1);
+            var curArr = pool.Rent(n + 1);
             try
             {
                 Array.Clear(prevArr, 0, n + 1);
 
-                for (int i = 0; i < a.Length; i++)
+                for (var i = 0; i < a.Length; i++)
                 {
                     curArr[0] = 0;
                     var ai = a[i];
-                    for (int j = 1; j <= n; j++)
+                    for (var j = 1; j <= n; j++)
                     {
-                        int t = cmp.Equals(ai, b[j - 1]) ? prevArr[j - 1] + 1 : (prevArr[j] >= curArr[j - 1] ? prevArr[j] : curArr[j - 1]);
+                        var t = cmp.Equals(ai, b[j - 1]) ? prevArr[j - 1] + 1 : (prevArr[j] >= curArr[j - 1] ? prevArr[j] : curArr[j - 1]);
                         curArr[j] = t;
                     }
                     (prevArr, curArr) = (curArr, prevArr);
@@ -411,7 +420,7 @@ public static class Diffs
 
     private static void LcsLengthsBackward<T>(ReadOnlySpan<T> a, ReadOnlySpan<T> b, IEqualityComparer<T> cmp, Span<int> result)
     {
-        int n = b.Length;
+        var n = b.Length;
         if (result.Length < n + 1) throw new ArgumentException("Result span too small.", nameof(result));
 
         if (n + 1 <= StackAllocThreshold)
@@ -420,11 +429,11 @@ public static class Diffs
             Span<int> cur = stackalloc int[n + 1];
             prev.Clear(); cur.Clear();
 
-            for (int i = a.Length - 1; i >= 0; i--)
+            for (var i = a.Length - 1; i >= 0; i--)
             {
                 var ai = a[i];
                 cur[n] = 0;
-                for (int j = n - 1; j >= 0; j--)
+                for (var j = n - 1; j >= 0; j--)
                     cur[j] = cmp.Equals(ai, b[j]) ? prev[j + 1] + 1 : (prev[j] >= cur[j + 1] ? prev[j] : cur[j + 1]);
                 var tmp = prev;
                 prev = cur;
@@ -436,19 +445,19 @@ public static class Diffs
         else
         {
             var pool = ArrayPool<int>.Shared;
-            int[] prevArr = pool.Rent(n + 1);
-            int[] curArr = pool.Rent(n + 1);
+            var prevArr = pool.Rent(n + 1);
+            var curArr = pool.Rent(n + 1);
             try
             {
                 Array.Clear(prevArr, 0, n + 1);
 
-                for (int i = a.Length - 1; i >= 0; i--)
+                for (var i = a.Length - 1; i >= 0; i--)
                 {
                     var ai = a[i];
                     curArr[n] = 0;
-                    for (int j = n - 1; j >= 0; j--)
+                    for (var j = n - 1; j >= 0; j--)
                     {
-                        int t = cmp.Equals(ai, b[j]) ? prevArr[j + 1] + 1 : (prevArr[j] >= curArr[j + 1] ? prevArr[j] : curArr[j + 1]);
+                        var t = cmp.Equals(ai, b[j]) ? prevArr[j + 1] + 1 : (prevArr[j] >= curArr[j + 1] ? prevArr[j] : curArr[j + 1]);
                         curArr[j] = t;
                     }
                     (prevArr, curArr) = (curArr, prevArr);
@@ -468,13 +477,13 @@ public static class Diffs
         T[] oldSeq, T[] newSeq, IEqualityComparer<T> cmp,
         out int prefixLen, out int suffixLen)
     {
-        int n = oldSeq.Length;
-        int m = newSeq.Length;
+        var n = oldSeq.Length;
+        var m = newSeq.Length;
 
-        int i = 0;
+        var i = 0;
         while (i < n && i < m && cmp.Equals(oldSeq[i], newSeq[i])) i++;
 
-        int j = 0;
+        var j = 0;
         while (j + i < n && j + i < m && cmp.Equals(oldSeq[n - 1 - j], newSeq[m - 1 - j])) j++;
 
         prefixLen = i;
@@ -484,7 +493,7 @@ public static class Diffs
 
 public class Diff<T>
 {
-    public required DiffEntry<T>[] Entries { get; set; }
+    public required IList<DiffEntry<T>> Entries { get; set; }
 }
 
 public class DiffEntry<T>

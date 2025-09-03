@@ -64,7 +64,7 @@ public class DiffsMayerTests
         diff.Entries.Select(e => e.Value).Should().Equal(a);
     }
 
-    private static int[] Apply(int[] oldSeq, DiffEntry<int>[] entries)
+    private static int[] Apply(int[] oldSeq, IList<DiffEntry<int>> entries)
     {
         var list = new List<int>(oldSeq);
         int index = 0;

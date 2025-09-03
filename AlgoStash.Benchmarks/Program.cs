@@ -11,8 +11,8 @@ BenchmarkRunner.Run<Program>();
 [IterationCount(10)]
 public partial class Program
 {
-    public Person[] OldPeople { get; set; }
-    public Person[] NewPeople { get; set; }
+    private Person[]? OldPeople { get; set; }
+    private Person[]? NewPeople { get; set; }
 
     [GlobalSetup]
     public void Setup()

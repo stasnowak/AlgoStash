@@ -1,0 +1,33 @@
+﻿name: "🚀 • .NET CI"
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 - Check Out"
+        uses: actions/checkout@v5
+
+      - name: "🛠️ - Setup .NET"
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: "📦 - Restore Dependencies"
+        run: dotnet restore
+
+      - name: "🏗️ - Build"
+        run: dotnet build --no-restore --configuration Release
+
+      - name: "🧪 - Test"
+        run: dotnet test --no-build --configuration Release --logger prettier
+      
+      - name: "🐌 - Benchmark"
+        run: dotnet run --project ./AlgoStash.Benchmarks/AlgoStash.Benchmarks.csproj --configuration Release
