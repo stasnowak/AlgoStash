@@ -1,3 +1,5 @@
+[![🔍 • CodeQL](https://github.com/stasnowak/AlgoStash/actions/workflows/codeql.yml/badge.svg)](https://github.com/stasnowak/AlgoStash/actions/workflows/codeql.yml)
+
 [![🚀 • .NET CI](https://github.com/stasnowak/AlgoStash/actions/workflows/build.yml/badge.svg)](https://github.com/stasnowak/AlgoStash/actions/workflows/build.yml)
 
 # AlgoStash
