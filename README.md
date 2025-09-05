@@ -1,3 +1,5 @@
+[![🚀 • .NET CI](https://github.com/stasnowak/AlgoStash/actions/workflows/build.yml/badge.svg)](https://github.com/stasnowak/AlgoStash/actions/workflows/build.yml)
+
 # AlgoStash
 
 A small .NET library showcasing sequence diff algorithms.
