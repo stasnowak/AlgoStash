@@ -2,57 +2,52 @@
 
 [![🚀 • .NET CI](https://github.com/stasnowak/AlgoStash/actions/workflows/build.yml/badge.svg)](https://github.com/stasnowak/AlgoStash/actions/workflows/build.yml)
 
+
 # AlgoStash
 
-A small .NET library showcasing sequence diff algorithms.
+A small .NET 9 library with:
+- Sequence diff algorithms (LCS-based and a fast heuristic)
+- A lightweight graph PathFinder utility for finding shortest paths and retrieving edge transitions
 
-This repository currently implements two algorithms for computing differences between sequences:
-- LCS-based diff (CreateLCS)
-- A simple heuristic inspired by Eugene W. Myers/Mayer-style scanning (CreateMayer)
+The library is designed to be simple, fast, and easy to drop into your projects.
 
-Both algorithms operate generically on T[] with a provided IEqualityComparer<T> and return a Diff<T> composed of DiffEntry<T> elements of types Insert, Stable, Remove.
+## Features
 
-## Projects
-- AlgoStash: Class library/console with algorithms and simple demo in Program.cs.
-- AlgoStash.Tests.Unit: xUnit test project with unit tests for both algorithms.
+- LCS-based diff (CreateLCS): minimal edit script via dynamic programming + backtracking
+- Heuristic diff (CreateMayer): very fast forward scan, not guaranteed minimal
+- Generic APIs over T[] with pluggable IEqualityComparer<T>
+- PathFinder: build a directed graph, find shortest paths (BFS), and get transitions with actions
+- Thorough unit tests and initial performance benchmarks
 
-## Getting started
-Requires .NET 9 SDK.
+## Project structure
 
-Build:
-- dotnet build
+- AlgoStash: Class library with algorithms and a small console demo in Program.cs
+- AlgoStash.Tests.Unit: xUnit test project
 
-Run demo:
-- dotnet run --project .\AlgoStash
+## Requirements
 
-Run tests:
-- dotnet test
+- .NET 9 SDK
 
-## API overview
-- Diffs.CreateLCS<T>(T[] oldSequence, T[] newSequence, IEqualityComparer<T> equalityComparer):
-  - Uses dynamic programming LCS matrix and backtracking to produce a minimal edit script with Stable/Insert/Remove.
-- Diffs.CreateMayer<T>(T[] oldSequence, T[] newSequence, IEqualityComparer<T> equalityComparer):
-  - Uses a forward scan heuristic to find matches and emits removals/inserts; not guaranteed minimal but fast.
+## Build, run, test
 
-Return types:
-- Diff<T> { DiffEntry<T>[] Entries }
-- DiffEntry<T> { DiffType Type, T Value }
-- enum DiffType { Insert, Stable, Remove }
+- Build:
+  - dotnet build
+- Run demo:
+  - dotnet run --project .\AlgoStash
+- Run tests:
+  - dotnet test
 
-## Example
-See Program.cs for a simple demonstration:
-- a = [0,1,2,3,4,5]
-- b = [0,2,3,4,5,6]
-It prints JSON-serialized entries for both algorithms.
+## Installation / Usage in your solution
 
-## Contributing
-Issues and PRs are welcome.
+The library is not published to a public feed by default. You can:
+- Add a project reference to AlgoStash from your application project, or
+- Pack locally and reference the nupkg:
+  - dotnet pack .\AlgoStash -c Release
+  - dotnet nuget add source .\AlgoStash\bin\Release
+  - dotnet add <your-project> package AlgoStash -s .\AlgoStash\bin\Release
 
-## Initial benchmarks
+## Quickstart
 
-| Method             | Mean        | Error      | StdDev     | Ratio | RatioSD | Rank | Gen0     | Gen1     | Gen2     | Allocated  | Alloc Ratio |
-|------------------- |------------:|-----------:|-----------:|------:|--------:|-----:|---------:|---------:|---------:|-----------:|------------:|
-| Lcs_Diff_Persons   | 5,817.71 us | 167.124 us | 110.542 us | 1.000 |    0.03 |    2 | 992.1875 | 992.1875 | 992.1875 | 3990.66 KB |        1.00 |
-| Mayer_Diff_Persons |    11.47 us |   0.373 us |   0.247 us | 0.002 |    0.00 |    1 |   6.7139 |   1.1139 |        - |   109.9 KB |        0.03 |
+### Diffs
 
-For current see build pipeline results.
+Compute differences between two sequences using either algorithm.
